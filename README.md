@@ -72,7 +72,8 @@ Bash/Zsh (Linux/macOS):
 
 	 *Dinamyc parameters*
 
-## cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"
+*cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"*
+
 	The command above will start the tests on mobileWebkit device(iPhone 12) on 3 TestWorkers *
 
 Reporting Test Results
