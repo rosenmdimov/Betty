@@ -68,11 +68,11 @@ Bash/Zsh (Linux/macOS):
 *[assembly: LevelOfParallelism(4)]   Using this parameter here, we can set the number of 
 	threads/workers statically by running the tests from 
 	the terminal with the command: dotnet test*
+* Dinamyc parameters *
+
+	 cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"
 
 
-	 ## Dinamyc parameters ##
-
-*cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"*
 
 	The command above will start the tests on mobileWebkit device(iPhone 12) on 3 TestWorkers *
 
