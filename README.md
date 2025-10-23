@@ -55,13 +55,13 @@ Additional valid configurations may be added, adhering to the specified format.*
 
 Bash/Zsh (Linux/macOS):
 
-## TEST_PROFILE=mobileWebkit dotnet test
+## TEST_PROFILE=mobileWebkit dotnet test ##
 
 3. Parallel execution#
 	- The parameters that take care of the parallel execution of the tests are found in:
 	/Properties/AssemblyInfo.cs
 
-	## Static parameters 
+	*Static parameters*
 
 *[assembly: Parallelizable(ParallelScope.All)] - Sets the maximum number of threads that NUnit should use.
 	0 means NUnit should use as many CPU cores as are available (recommended).*
@@ -72,7 +72,7 @@ Bash/Zsh (Linux/macOS):
 
 	 *Dinamyc parameters*
 
-*cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"*
+## cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3" ##
 
 	The command above will start the tests on mobileWebkit device(iPhone 12) on 3 TestWorkers *
 
