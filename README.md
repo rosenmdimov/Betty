@@ -70,7 +70,7 @@ Bash/Zsh (Linux/macOS):
 	the terminal with the command: dotnet test*
 * Dinamyc parameters *
 
-	 ##cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"
+	 ## cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"
 
 
 
