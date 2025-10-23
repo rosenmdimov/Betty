@@ -47,18 +47,17 @@ Use TEST_PROFILE=mobileWebkit for iPhone 12 emulation.
 
 PowerShell (Windows):
 
-$env:TEST_PROFILE="mobileWebkit"
+## $env:TEST_PROFILE="mobileWebkit"
 dotnet test
 
-*The Supported profiles can be viewed in app settings.json.
-More valid configurations may be added, respecting the specified format.*
-
+*The supported profiles can be viewed in app settings.json.
+Additional valid configurations may be added, adhering to the specified format.*
 
 Bash/Zsh (Linux/macOS):
 
-TEST_PROFILE=mobileWebkit dotnet test
+## TEST_PROFILE=mobileWebkit dotnet test
 
-3. Paralel execution#
+3. Parallel execution#
 	- The parameters that take care of the parallel execution of the tests are found in:
 	/Properties/AssemblyInfo.cs
 
@@ -71,10 +70,10 @@ TEST_PROFILE=mobileWebkit dotnet test
 	the terminal with the command: dotnet test*
 
 
-	## Dinamyc parameters 
+	 *Dinamyc parameters*
 
-* cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"
-	the command above will start the tests on mobileWebkit device(iPhone 12) on 3 TestWorkers *
+## cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"
+	The command above will start the tests on mobileWebkit device(iPhone 12) on 3 TestWorkers *
 
 Reporting Test Results
 📸 Automatic Screenshots on Failure
