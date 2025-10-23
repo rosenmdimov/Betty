@@ -70,9 +70,9 @@ Bash/Zsh (Linux/macOS):
 	the terminal with the command: dotnet test*
 
 
-	 *Dinamyc parameters*
+	 ## Dinamyc parameters ##
 
-## cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3" ##
+*cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"*
 
 	The command above will start the tests on mobileWebkit device(iPhone 12) on 3 TestWorkers *
 
