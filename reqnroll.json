@@ -1,9 +1,6 @@
 {
   "$schema": "https://schemas.reqnroll.net/reqnroll-config-latest.json",
   "formatters": {
-    "html": {
-      "outputFilePath": "reports/TestResults.html"
-    },
     "console": {
       "useColors": true,
       "showBindings": false,
