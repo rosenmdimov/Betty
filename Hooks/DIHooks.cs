@@ -1,4 +1,5 @@
-﻿using Microsoft.Playwright;
+﻿using Allure.Net.Commons;
+using Microsoft.Playwright;
 using Reqnroll.BoDi;
 using Reqnroll;
 using Betty.Configuration;
@@ -8,77 +9,96 @@ using System.Diagnostics;
 namespace Betty.Hooks;
 
 [Binding]
-public class DIHooks(IObjectContainer objectContainer)
+public class DIHooks(IObjectContainer objectContainer, ScenarioContext scenarioContext)
 {
     private readonly IObjectContainer _objectContainer = objectContainer;
+    private readonly ScenarioContext _scenarioContext = scenarioContext;
     private IPlaywright? _playwright;
     private IBrowser? _browser;
-    private AppConfig? _config;
+    private IBrowserContext? _context;
+
+    private static readonly string OutputDir = AppDomain.CurrentDomain.BaseDirectory;
+    private static readonly string AllureResultsDir = Path.Combine(OutputDir, "allure-results");
+    private static readonly string AllureReportPath = Path.Combine(OutputDir, "allure-report", "index.html");
 
     [BeforeTestRun]
     public static void BeforeTestRun()
     {
-        string reportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reports", "TestResults.html");
-        
-        if (File.Exists(reportPath))
+        // Start every run with an empty allure-results folder (the history file is kept)
+        try
         {
-            try
-            {
-                File.Delete(reportPath);
-                TestContext.Out.WriteLine("✅ Reqnroll report Cleanup successfully invoked.");
-            }
-            catch (Exception ex)
-            {
-                TestContext.Error.WriteLine($"⚠️ Reqnroll Cleanup error: {ex.Message}");
-            }
+            AllureLifecycle.Instance.CleanupResultDirectory();
+            TestContext.Out.WriteLine("✅ Allure results cleanup successfully invoked.");
+        }
+        catch (Exception ex)
+        {
+            TestContext.Error.WriteLine($"⚠️ Allure results cleanup error: {ex.Message}");
         }
     }
 
     [BeforeScenario(Order = 1)]
     public async Task BeforeScenario()
     {
-        // Load configuration
-        _config = ConfigurationLoader.LoadConfig();
-        _objectContainer.RegisterInstanceAs(_config);
+        // Load configuration (read once per test run, shared by all scenarios)
+        var config = ConfigurationLoader.LoadConfig();
+        _objectContainer.RegisterInstanceAs(config);
 
         _playwright = await Playwright.CreateAsync();
-        var browserManager = new BrowserManager(_config);
+        var browserManager = new BrowserManager(config);
         _browser = await browserManager.LaunchBrowserAsync(_playwright);
 
         var contextOptions = browserManager.GetContextOptions(_playwright);
-        var context = await _browser.NewContextAsync(contextOptions);
+        _context = await _browser.NewContextAsync(contextOptions);
 
-        context.SetDefaultTimeout(_config.ElementTimeoutMs);
-        var page = await context.NewPageAsync();
-        page.SetDefaultNavigationTimeout(_config.NavigationTimeoutMs);
+        _context.SetDefaultTimeout(config.ElementTimeoutMs);
+        _context.SetDefaultNavigationTimeout(config.NavigationTimeoutMs);
+        var page = await _context.NewPageAsync();
 
         _objectContainer.RegisterInstanceAs(page);
-        _objectContainer.RegisterInstanceAs(context);
+        _objectContainer.RegisterInstanceAs(_context);
         _objectContainer.RegisterInstanceAs(_browser);
         _objectContainer.RegisterInstanceAs(_playwright);
+
+        AddRunInfoToReport(config, _browser);
     }
 
     [AfterStep]
-    public async Task AfterStepAsync(ScenarioContext scenarioContext)
+    public async Task AfterStepAsync()
     {
-        if (scenarioContext.TestError != null)
+        if (_scenarioContext.TestError == null || _context == null)
         {
-            try
+            return;
+        }
+
+        try
+        {
+            string screenshotsDir = Path.Combine(OutputDir, "reports", "screenshots");
+            Directory.CreateDirectory(screenshotsDir);
+
+            // Capture every open tab, so failures inside the game tab are visible too.
+            // The random suffix keeps names unique when Scenario Outline examples fail in parallel.
+            string baseName = $"fail_{ToSafeFileName(_scenarioContext.ScenarioInfo.Title)}_{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString("N")[..6]}";
+            var pages = _context.Pages;
+            for (int i = 0; i < pages.Count; i++)
             {
-                var page = _objectContainer.Resolve<IPage>();
-                byte[] screenshotBytes = await page.ScreenshotAsync(new PageScreenshotOptions { FullPage = true });
-                string screenshotsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reports", "screenshots");
-                Directory.CreateDirectory(screenshotsDir);
-
-                string screenshotPath = Path.Combine(screenshotsDir, $"fail_{DateTime.Now:yyyyMMdd_HHmmss}.png");
-                await File.WriteAllBytesAsync(screenshotPath, screenshotBytes);
-
+                // JPEG keeps full-page screenshots small enough to embed in the single-file Allure report
+                string screenshotPath = Path.Combine(screenshotsDir, $"{baseName}_tab{i + 1}.jpg");
+                byte[] screenshot = await pages[i].ScreenshotAsync(new PageScreenshotOptions
+                {
+                    Path = screenshotPath,
+                    FullPage = true,
+                    Type = ScreenshotType.Jpeg,
+                    Quality = 70
+                });
                 TestContext.Out.WriteLine($"⚠️ Screenshot saved to {screenshotPath}");
+
+                AllureApi.AddAttachment($"Screenshot – tab {i + 1}", "image/jpeg", screenshot, ".jpg");
+                AllureApi.AddAttachment($"URL – tab {i + 1}", "text/uri-list", System.Text.Encoding.UTF8.GetBytes(pages[i].Url), ".uri");
             }
-            catch (Exception ex)
-            {
-                TestContext.Error.WriteLine($"⚠️ Error capturing screenshot: {ex.Message}");
-            }
+        }
+        catch (Exception ex)
+        {
+            TestContext.Error.WriteLine($"⚠️ Error capturing screenshot: {ex.Message}");
         }
     }
 
@@ -87,20 +107,15 @@ public class DIHooks(IObjectContainer objectContainer)
     {
         try
         {
-            if (_objectContainer.IsRegistered<IBrowserContext>())
+            if (_context != null)
             {
-                var context = _objectContainer.Resolve<IBrowserContext>();
-                await context.CloseAsync();
+                await _context.CloseAsync();
             }
-            if (_objectContainer.IsRegistered<IBrowser>())
+            if (_browser != null)
             {
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
                 await _browser.CloseAsync();
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
             }
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-            _playwright.Dispose();
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            _playwright?.Dispose();
             TestContext.Out.WriteLine("✅ Browser resources released.");
         }
         catch (Exception ex)
@@ -112,26 +127,97 @@ public class DIHooks(IObjectContainer objectContainer)
     [AfterTestRun]
     public static void AfterTestRun()
     {
+        // On build agents (most CI systems set the CI variable) the report is generated by the pipeline
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")))
+        {
+            TestContext.Out.WriteLine($"Allure results: {AllureResultsDir}");
+            return;
+        }
+
         try
         {
-            string reportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reports", "TestResults.html");
-            if (File.Exists(reportPath))
+            if (!GenerateAllureReport())
             {
-                TestContext.Out.WriteLine($"✅ Opening report: {reportPath}");
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = reportPath,
-                    UseShellExecute = true // Opens in default browser
-                });
+                return;
             }
-            else
+
+            TestContext.Out.WriteLine($"✅ Opening report: {AllureReportPath}");
+            Process.Start(new ProcessStartInfo
             {
-                TestContext.Error.WriteLine("⚠️ Report file not found.");
-            }
+                FileName = AllureReportPath,
+                UseShellExecute = true // Opens in default browser
+            });
         }
         catch (Exception ex)
         {
-            TestContext.Error.WriteLine($"⚠️ Could not open report automatically: {ex.Message}");
+            TestContext.Error.WriteLine($"⚠️ Could not generate or open the Allure report: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Runs the Allure 3 CLI (npm install -g allure) in the output folder, where allurerc.mjs is copied on build.
+    /// </summary>
+    private static bool GenerateAllureReport()
+    {
+        const string arguments = "generate allure-results";
+
+        // The npm "allure" command is a .cmd script on Windows, which needs cmd.exe to run
+        var startInfo = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("cmd.exe", $"/c allure {arguments}")
+            : new ProcessStartInfo("allure", arguments);
+        startInfo.WorkingDirectory = OutputDir;
+        startInfo.UseShellExecute = false;
+        startInfo.CreateNoWindow = true;
+        startInfo.RedirectStandardOutput = true;
+        startInfo.RedirectStandardError = true;
+
+        using var process = Process.Start(startInfo);
+        if (process == null)
+        {
+            TestContext.Error.WriteLine("⚠️ Could not start the Allure CLI.");
+            return false;
+        }
+
+        // Read both streams asynchronously so a full buffer can't block the CLI
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(TimeSpan.FromMinutes(2)))
+        {
+            process.Kill(entireProcessTree: true);
+            TestContext.Error.WriteLine("⚠️ Allure report generation timed out.");
+            return false;
+        }
+
+        if (process.ExitCode != 0 || !File.Exists(AllureReportPath))
+        {
+            TestContext.Error.WriteLine($"⚠️ Allure report was not generated (exit code {process.ExitCode}). " +
+                "Install the Allure CLI with 'npm install -g allure'.");
+            TestContext.Error.WriteLine(error.Result + output.Result);
+            return false;
+        }
+
+        return true;
+    }
+
+    // Shows which profile, browser and device the scenario ran on
+    private static void AddRunInfoToReport(AppConfig config, IBrowser browser)
+    {
+        try
+        {
+            AllureApi.AddLabel("profile", config.ProfileName);
+            AllureApi.AddLabel("browser", $"{config.Browser} {browser.Version}");
+            AllureApi.AddLabel("device", string.IsNullOrEmpty(config.Device) ? "Desktop" : config.Device);
+        }
+        catch (Exception ex)
+        {
+            TestContext.Error.WriteLine($"⚠️ Could not add run info to the Allure report: {ex.Message}");
+        }
+    }
+
+    private static string ToSafeFileName(string text)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var safe = new string(text.Select(c => invalid.Contains(c) || c == ' ' ? '_' : c).ToArray());
+        return safe.Length > 60 ? safe[..60] : safe;
     }
 }

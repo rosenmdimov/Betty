@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Allure.Reqnroll" Version="2.15.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -53,17 +54,18 @@
 	  <None Update="appsettings.json">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
+	  <None Update="allureConfig.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	  <None Update="allurerc.mjs">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Features\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ReqnrollFeatureFiles Update="Features\IrishWilds.feature">
-      <Generator Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">ReqnrollSingleFileGenerator</Generator>
-    </ReqnrollFeatureFiles>
-  </ItemGroup>
 	
 
 </Project>

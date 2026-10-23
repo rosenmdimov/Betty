@@ -8,6 +8,11 @@ namespace Betty.Configuration
     /// </summary>
     public class AppConfig
     {
+        /// <summary>
+        /// Name of the active profile (e.g. "desktopChrome"). Set by ConfigurationLoader.
+        /// </summary>
+        public string ProfileName { get; set; } = string.Empty;
+
         // Browser settings
         public string BaseUrl { get; set; } = "https://www.spinberry.com";
         public string Browser { get; set; } = "chromium";
@@ -23,10 +28,5 @@ namespace Betty.Configuration
         /// Maximum timeout for Playwright when navigating in milliseconds.
         /// </summary>
         public int NavigationTimeoutMs { get; set; } = 30000; // 30 sec
-
-        /// <summary>
-        /// The bet amount used on each spin in the tests.
-        /// </summary>
-        public decimal DefaultBetAmount { get; set; } = 1.00m;
     }
 }

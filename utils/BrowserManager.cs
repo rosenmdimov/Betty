@@ -42,27 +42,25 @@ public class BrowserManager
     /// </summary>
     public BrowserNewContextOptions GetContextOptions(IPlaywright playwright)
     {
-        // Initialize context options. The global timeouts
-        // for page operations (_config.ElementTimeoutMs and _config.NavigationTimeoutMs)
-        // will be implemented later in DIHooks.cs, as they are not part of BrowserNewContextOptions.
+        // The timeouts (_config.ElementTimeoutMs and _config.NavigationTimeoutMs) are not part of
+        // BrowserNewContextOptions; DIHooks applies them to the context after it is created.
         var contextOptions = new BrowserNewContextOptions();
 
         if (!string.IsNullOrEmpty(_config.Device))
         {
-            var device = playwright.Devices[_config.Device];
-
-            if (device != null)
+            if (!playwright.Devices.TryGetValue(_config.Device, out var device))
             {
-                // Implementing mobile emulation
-                contextOptions.ViewportSize = device.ViewportSize;
-                contextOptions.UserAgent = device.UserAgent;
-                contextOptions.IsMobile = device.IsMobile;
-                contextOptions.HasTouch = device.HasTouch;
+                throw new InvalidOperationException($"Unknown Playwright device '{_config.Device}'. Check the 'Device' value of the active profile.");
             }
-        }
 
-        // **IMPORTANT:** Playwright.NET requires that we set a DefaultTimeout for the page,
-        // which is best done in DIHooks.
+            // Implementing mobile emulation
+            contextOptions.ViewportSize = device.ViewportSize;
+            contextOptions.ScreenSize = device.ScreenSize;
+            contextOptions.DeviceScaleFactor = device.DeviceScaleFactor;
+            contextOptions.UserAgent = device.UserAgent;
+            contextOptions.IsMobile = device.IsMobile;
+            contextOptions.HasTouch = device.HasTouch;
+        }
 
         return contextOptions;
     }

@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Reqnroll: code-behind is generated from the .feature files on every build
+*.feature.cs
+
+# Allure results, reports and run history
+allure-results/
+allure-report/
+allure-history.jsonl

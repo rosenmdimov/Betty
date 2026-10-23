@@ -5,7 +5,7 @@
     /// </summary>
     public class ScenarioState
     {
-        public decimal InitialBalance { get; set; } = 0m;
-        public decimal CurrentBalance { get; internal set; }
+        public decimal InitialBalance { get; set; }
+        public decimal CurrentBalance { get; set; }
     }
 }

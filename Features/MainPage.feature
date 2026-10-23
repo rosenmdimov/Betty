@@ -1,5 +1,7 @@
-Feature: Testing www.spinbery.com
+@allure.epic:Website
+Feature: Testing www.spinberry.com
 
+	@desktop @mobile @minor @allure.story:SocialMedia
 	Scenario Outline: Verify the social media icons are displayed
 		Given I am on the Main page
 		When I accept the cookie policy
@@ -7,7 +9,6 @@ Feature: Testing www.spinbery.com
 
 		Examples:
 			| media     |
-			| facebook  |
-			| instagram |
-			| linkedin  |
-					
+			| Facebook  |
+			| Instagram |
+			| LinkedIn  |

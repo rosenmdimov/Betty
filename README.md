@@ -1,85 +1,170 @@
-Betty Slot Game Automation Framework (Spinberry - Irish Wilds)
+# Betty – Slot Game Automation Framework (Spinberry – Irish Wilds)
 
-This framework is built using C#, Reqnroll (Cucumber for .NET), NUnit,
-and Playwright (.NET), and follows a clean DI (Dependency Injection) architecture.
-It is designed to be easily scalable and supports execution across different profiles
-(Desktop and Mobile Emulation) via configuration in appsettings.json.
+BDD test automation for [spinberry.com](https://www.spinberry.com) and the *Irish Wilds* slot game, built with
+**C#**, **Reqnroll** (Cucumber for .NET), **NUnit** and **Playwright for .NET**. It uses dependency injection
+throughout and runs the same scenarios on desktop and emulated mobile devices, selected by profile.
 
-# Prerequisites
+## Prerequisites
 
-1. .NET 8.0 SDK or newer.
+- .NET 8.0 SDK or newer
+- Visual Studio 2022 (with the **Reqnroll for Visual Studio 2022** extension) or VS Code
+- PowerShell (`pwsh`) to install the Playwright browsers
+- Node.js 20+ and the [Allure 3](https://allurereport.org/) CLI for the test report: `npm install -g allure`
 
-2. Visual Studio (or VS Code).
+## Installation and setup
 
-3. Playwright Browsers: Playwright binary files must be installed.
+```bash
+git clone https://github.com/rosenmdimov/Betty.git
+cd Betty
+dotnet restore
+dotnet build
+pwsh bin/Debug/net8.0/playwright.ps1 install
+```
 
-4. Install the extension Reqnroll for Visual Studio 22
+The last command downloads the Chromium, Firefox and WebKit binaries Playwright needs. Run it again after
+upgrading the `Microsoft.Playwright` package.
 
-# Installation and Setup
+## Running the tests
 
-1. Clone or unzip the project.
+Tests run with the profile from `appsettings.json`. Without `TEST_PROFILE`, `DefaultProfile` (`desktopChrome`) is used.
 
-2. Restore dependencies: Open a command prompt in the project's root directory and run:dotnet restore
-3. Install Playwright Browsers: Playwright requires binary files for Chromium, Firefox, and Webkit.pwsh bin/Debug/net8.0/playwright.ps1 install
-4. Configure `appsettings.json`:
-    - Ensure the `appsettings.json` file is correctly configured with the required profiles and settings.
+| Profile         | Browser  | Device emulation |
+|-----------------|----------|------------------|
+| `desktopChrome` | Chromium | –                |
+| `mobileWebkit`  | WebKit   | iPhone 12        |
+| `androidChrome` | Chromium | Pixel 7          |
 
-# Running the Tests
+```powershell
+# PowerShell (Windows)
+dotnet test                                  # desktopChrome
+$env:TEST_PROFILE = "mobileWebkit"; dotnet test
+```
 
-Tests are executed using profiles defined in `appsettings.json`. You can switch between profiles using the `TEST_PROFILE` environment variable.
+```bash
+# Bash/Zsh (Linux/macOS)
+TEST_PROFILE=mobileWebkit dotnet test
+```
 
-1. Running in Desktop Profile (Default)
-    - If `TEST_PROFILE` is not set, `desktopChrome` is used.dotnet test
-2. Running in Mobile Profile (Emulation)
-    - Use `TEST_PROFILE=mobileWebkit` for iPhone 12 emulation.
+### Overriding profile settings
 
-   **PowerShell (Windows):**
+Any profile value can be overridden with an environment variable named
+`TestProfiles__<profile>__<setting>`, for example to run headless:
 
+```powershell
+$env:TestProfiles__desktopChrome__Headless = "true"; dotnet test
+```
 
-	$env:TEST_PROFILE="mobileWebkit" dotnet test
+```bash
+TestProfiles__desktopChrome__Headless=true dotnet test
+```
 
-   **Bash/Zsh (Linux/macOS):** 
+Profile settings: `BaseUrl`, `Browser` (`chromium`, `firefox`, `webkit`), `Headless`, `Device`
+(a [Playwright device name](https://playwright.dev/docs/emulation#devices)), `ElementTimeoutMs`, `NavigationTimeoutMs`.
 
-	TEST_PROFILE=mobileWebkit dotnet test
+### Running a subset
 
-3. Viewing Test Results:
-    - Test results are logged in HTML format and can be found at: ```
-      [ProjectDir]\bin\Debug\net8.0\reports\TestResults.html3. Paralel execution#
-    - The parameters that take care of the parallel execution of the tests are found in:
-      /Properties/AssemblyInfo.cs
+```bash
+dotnet test --filter "Category=mobile"                        # by Gherkin tag
+dotnet test --filter "FullyQualifiedName~IrishWildsGameplay"  # by feature
+```
 
-   ## Static parameters
+Tags only filter scenarios; the browser and device always come from the profile.
 
-*[assembly: Parallelizable(ParallelScope.All)] - Sets the maximum number of threads that NUnit should use.
-0 means NUnit should use as many CPU cores as are available (recommended).*
-*[assembly: LevelOfParallelism(4)]   Using this parameter here, we can set the number of
-threads/workers statically by running the tests from
-the terminal with the command: dotnet test*
+### Parallel execution
 
-## Dynamic parameters
+Features and scenarios run in parallel (`[assembly: Parallelizable(ParallelScope.All)]` in
+`Properties/AssemblyInfo.cs`); every scenario gets its own browser. NUnit uses one worker per CPU core by default.
+To change the number of workers for one run:
 
+```bash
+dotnet test -- NUnit.NumberOfTestWorkers=3
+```
 
-	cmd /c "set TEST_PROFILE=mobileWebkit && dotnet test -- NUnit.NumberOfTestWorkers=3"
+To fix it permanently, uncomment `[assembly: LevelOfParallelism(4)]` in `Properties/AssemblyInfo.cs`.
 
+## Test results (Allure)
 
-*the command above will start the tests on mobileWebkit device(iPhone 12) on 3 TestWorkers*
+Results are recorded with [Allure.Reqnroll](https://allurereport.org/docs/reqnroll/). After every local run, an
+Allure 3 report is generated and opened in the default browser.
 
-Reporting Test Results
-📸 Automatic Screenshots on Failure
-When a test fails, the system automatically takes a full-page screenshot and saves it in:
-[ProjectDir]\bin\Debug\net8.0\reports\screenshots
+| Output                        | Location                                        |
+|-------------------------------|-------------------------------------------------|
+| Allure report (single file)   | `bin/Debug/net8.0/allure-report/index.html`     |
+| Raw Allure results            | `bin/Debug/net8.0/allure-results/`              |
+| Run history (trends, flaky)   | `bin/Debug/net8.0/allure-history.jsonl`         |
+| Screenshots of failed steps   | `bin/Debug/net8.0/reports/screenshots/`         |
 
-📄 Generating a Detailed Report
-Execution results are logged in HTML format. To generate a nice HTML report.
+The report shows for every scenario:
 
-Path to the NUnit XML file:
-[ProjectDir]\bin\Debug\net8.0\reports\TestResults.xml
+- each Gherkin step with its status and duration, and the error message and stack trace of the failing step
+- **Failed** (assertion not met) vs **Broken** (exception such as a timeout) results
+- grouping by epic → feature → story, plus severity, tags and Scenario Outline parameters
+- the profile, browser version and device the scenario ran on (labels `profile`, `browser`, `device`)
+- on failure: a full-page screenshot and the URL of **every open tab** (main page and game tab)
+- trends and flaky tests across runs, from the history file (kept until `bin` is cleaned)
 
-# Architectural Overview
+The report is a single self-contained `index.html`, so it can be opened from disk or shared as one file.
+Report settings are in `allurerc.mjs`; adapter settings in `allureConfig.json`.
 
-- **BDD/Test Runner:** Reqnroll (using NUnit as the executor) provides the BDD structure (Gherkin) and manages the scenario lifecycle.
-- **Dependency Injection (DI):** Reqnroll (BoDi Container) automatically injects all core objects (IPage, AppConfig, IrishWildsPage) into class constructors.
-- **Profiles:** `DIHooks.cs` loads a configuration profile (desktop/mobile) from `appsettings.json`.
-- **Mobile Emulation:** `BrowserManager.cs` applies device options when creating the `IBrowserContext`, ensuring tests run in a mobile environment.
-- **Gameplay Validation:** `IrishWildsPage.cs` encapsulates the logic for spinning, fetching the balance, and validating that the balance is updated after a series of spins.
-- **Shared State:** `ScenarioState` is used to manage shared state between steps, such as the initial balance.
+### Generating the report manually
+
+When the `CI` environment variable is set (as on most build agents), the report is not generated or opened
+automatically. Generate it from the output folder instead:
+
+```bash
+cd bin/Debug/net8.0
+allure generate allure-results
+```
+
+Or let Allure run the tests and build the report in one go (writes `./allure-report` in the project root):
+
+```bash
+allure run -- dotnet test
+```
+
+### Report tags
+
+Add these Gherkin tags to features or scenarios to organise the report:
+
+| Tag                                         | Effect                    |
+|---------------------------------------------|---------------------------|
+| `@allure.epic:<Name>`                       | Epic (top-level group)    |
+| `@allure.story:<Name>`                      | Story (group in a feature)|
+| `@blocker` `@critical` `@normal` `@minor` `@trivial` | Severity         |
+| `@allure.owner:<Name>`                      | Owner                     |
+| `@allure.issue:<ID>` / `@allure.link:<URL>` | Links                     |
+
+Tag values can't contain spaces.
+
+## Scenarios
+
+| Feature            | Scenario                                               |
+|--------------------|--------------------------------------------------------|
+| `IrishWilds.feature` | Can open Irish Wilds game (demo indicator is shown)  |
+| `IrishWilds.feature` | Can verify that the initial amount is $2000          |
+| `IrishWilds.feature` | Verify that the balance changes after 10 spins       |
+| `MainPage.feature`   | Social media icons (Facebook, Instagram, LinkedIn) are displayed |
+
+## Project structure
+
+```
+Configuration/  AppConfig – the profile model bound from appsettings.json
+Features/       Gherkin .feature files (the .feature.cs code-behind is generated on build)
+Hooks/          DIHooks – browser lifecycle, screenshots on failure, Allure report generation
+Pages/          Page Objects: BasePage, MainPage, IrishWildsPage
+Properties/     AssemblyInfo – NUnit parallel execution settings
+Steps/          Step definitions
+Support/        ScenarioState – state shared between the steps of one scenario
+utils/          ConfigurationLoader (profile selection), BrowserManager (browser + device emulation)
+allureConfig.json  Allure.Reqnroll adapter settings
+allurerc.mjs       Allure 3 report settings (name, single-file output, history, grouping)
+```
+
+## Architecture overview
+
+- **BDD / test runner:** Reqnroll, with NUnit as the executor, provides the Gherkin structure and the scenario lifecycle.
+- **Dependency injection:** Reqnroll's container injects `IPage`, `AppConfig`, `ScenarioState` and the page objects into constructors.
+- **Profiles:** `ConfigurationLoader` picks the profile (`TEST_PROFILE`, then `DefaultProfile`) once per run; `DIHooks` registers it for every scenario.
+- **Mobile emulation:** `BrowserManager` applies the Playwright device settings (viewport, user agent, scale factor, touch) when creating the browser context.
+- **Gameplay:** `IrishWildsPage` opens the game in a new tab, starts it, spins and reads the balance. Steps store balances in `ScenarioState` to compare them.
+- **Reporting:** the Allure.Reqnroll plugin records steps, tags and parameters automatically; `DIHooks` adds the run labels and failure attachments and runs the Allure CLI after the test run.

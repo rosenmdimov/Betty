@@ -7,30 +7,27 @@ namespace Betty.Steps;
 [Binding]
 public class GameplaySteps
 {
-    private readonly MainPage _mainPage;
     private readonly IrishWildsPage _irishWildsPage;
     private readonly ScenarioState _state;
 
-    // DI: Reqnroll injects all dependencies
-    public GameplaySteps(MainPage mainPage, IrishWildsPage irishWildsPage, ScenarioState state)
+    // DI: Reqnroll injects all dependencies
+    public GameplaySteps(IrishWildsPage irishWildsPage, ScenarioState state)
     {
         _irishWildsPage = irishWildsPage;
-        _mainPage = mainPage;
         _state = state;
     }
 
+    [Given("I open the {string} game in a new tab")]
     [When("I open the {string} game in a new tab")]
-    public async Task WhenIOpenIrishWildsGameInNewTab(string neededGame)
+    public async Task WhenIOpenTheGameInNewTab(string neededGame)
     {
         await _irishWildsPage.OpenGameTileAndSwitchTabAsync(neededGame);
     }
 
     [Given("I start the game from the loading screen")]
     public async Task GivenIStartTheGameFromTheLoadingScreen()
-      {
+    {
         await _irishWildsPage.StartTheGameAsync();
-
-        TestContext.Out.WriteLine($"Launch the Game: {_irishWildsPage.Page.Url}");
     }
 
     [Then("The demo indicator is available on the page")]
@@ -40,32 +37,34 @@ public class GameplaySteps
         Assert.That(demoIndicator, Is.Not.Empty);
     }
 
-    [Then("The innitial amount is {int}")]
-    public async Task ThenTheInnitialAmountIsAsync(int wantedAmount)
+    [Then("The initial amount is {int}")]
+    public async Task ThenTheInitialAmountIs(int wantedAmount)
     {
-          await _irishWildsPage.GetBalance(); 
+        _state.InitialBalance = await _irishWildsPage.GetCurrentBalanceAsync();
         Assert.That(_state.InitialBalance, Is.EqualTo(wantedAmount));
     }
 
-    [Given("I Get the balance")]
+    [Given("I get the balance")]
     public async Task GivenIGetTheInitialBalance()
     {
-        await _irishWildsPage.GetBalance();
+        _state.InitialBalance = await _irishWildsPage.GetCurrentBalanceAsync();
+        TestContext.Out.WriteLine($"Initial balance: {_state.InitialBalance}");
     }
 
     [When("I make {int} spins")]
     public async Task WhenIMakeSpins(int spinsCount)
     {
-        await _irishWildsPage.MakeSpins(spinsCount);
+        await _irishWildsPage.MakeSpinsAsync(spinsCount);
     }
-    [Then("The ballance should be less than initial")]
-    public async Task ThenTheBallanceShouldBeLessThanInitial()
-    {
-        var initialState = _state.InitialBalance;
-        await _irishWildsPage.GetBalance();
-        var currentBalance = _state.InitialBalance;
 
-        Assert.That( currentBalance, Is.AtMost(initialState));
+    [Then("The balance should be different from the initial one")]
+    public async Task ThenTheBalanceShouldBeDifferentFromTheInitialOne()
+    {
+        _state.CurrentBalance = await _irishWildsPage.GetCurrentBalanceAsync();
+        TestContext.Out.WriteLine($"Initial balance: {_state.InitialBalance}, current balance: {_state.CurrentBalance}");
+
+        // A net win over several spins is possible, so only an unchanged balance is a failure
+        Assert.That(_state.CurrentBalance, Is.Not.EqualTo(_state.InitialBalance),
+            "The balance did not change after the spins.");
     }
 }
-
